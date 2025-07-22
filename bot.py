@@ -1,3 +1,6 @@
+import telegram
+print(f"PTB version: {telegram.__version__}")
+
 from telegram import (
     Update, ReplyKeyboardMarkup, KeyboardButton,
     ReplyKeyboardRemove
@@ -8,7 +11,7 @@ from telegram.ext import (
 )
 
 # 🔐 Твой Telegram ID, чтобы получать уведомления
-AUTHOR_ID = 1143620060  # ← замени на свой настоящий ID
+AUTHOR_ID = 1143620060 # ← замени на свой настоящий ID
 
 # Состояния
 ASK_NAME, ASK_PHONE = range(2)
