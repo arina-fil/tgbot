@@ -1,8 +1,14 @@
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
+from telegram import (
+    Update, ReplyKeyboardMarkup, KeyboardButton,
+    ReplyKeyboardRemove
+)
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     ContextTypes, filters, ConversationHandler
 )
+
+# 🔐 Твой Telegram ID, чтобы получать уведомления
+AUTHOR_ID = 1143620060  # ← замени на свой настоящий ID
 
 # Состояния
 ASK_NAME, ASK_PHONE = range(2)
@@ -13,14 +19,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
     await update.message.reply_text(
-        "Привет! \n ",
-          reply_markup=reply_markup
+        "Привет! 👋\nНажми кнопку ниже, чтобы начать регистрацию:",
+        reply_markup=reply_markup
     )
 
 # Начало регистрации
 async def handle_registration_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Убираем старые кнопки
     await update.message.reply_text(
-        "\n 30.07. 15:00-16:30  Пройдет Мастер-класс,стоимость 3500 тенге. На мастер-классе мы будем изучать наше тело, движение. Цель мастера-класса улучшить технику своего танца, Body work  ( разогрев, подкачка, мобильность суставов, работа со стабилизацией). Изучим несколько технических инструментов, которые исследуем в импро, поиске. Изучим хореографию на основе изученных инструментов. На протяжении всего мастер-класса будет присутствовать оператор, который зафиксирует наш рабочий процесс. Это в первую очередь делается для того, чтобы вы смогли проанализировать и поработать после с материалом.",
+        "ℹ️ 30.07 с 15:00 до 16:30 пройдет мастер-класс (стоимость 3500₸).\n"
+        "Будем изучать тело, движение, хореографию и технику. Будет оператор для записи процесса.",
+        reply_markup=ReplyKeyboardRemove()
     )
     await update.message.reply_text("Пожалуйста, напиши своё имя и фамилию:")
     return ASK_NAME
@@ -30,9 +39,9 @@ async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['name'] = update.message.text
 
     # Кнопка запроса контакта + возможность ввода вручную
-    contact_button = KeyboardButton("Отправить номер телефона", request_contact=True)
+    contact_button = KeyboardButton("📲 Отправить номер телефона", request_contact=True)
     reply_markup = ReplyKeyboardMarkup(
-        [[contact_button], ["Ввести номер вручную"]],
+        [[contact_button], ["✏️ Ввести номер вручную"]],
         resize_keyboard=True, one_time_keyboard=True
     )
 
@@ -43,23 +52,40 @@ async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ASK_PHONE
 
-# Получаем номер телефона
+# Получаем номер телефона и уведомляем автора
 async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Если номер пришёл как контакт
+    # Определяем, как получен номер
     if update.message.contact:
         phone = update.message.contact.phone_number
     else:
         phone = update.message.text.strip()
+        # Проверка на корректный формат
+        if not phone.startswith('+') or not phone[1:].isdigit():
+            await update.message.reply_text("⚠️ Пожалуйста, введи номер в правильном формате: +77774567890")
+            return ASK_PHONE
 
     context.user_data['phone'] = phone
     name = context.user_data['name']
 
-    await update.message.reply_text(f" Отлично, {name}!\n Мы свяжемся с тобой по номеру: {phone}, \n Подробная инфоромация о мастер-классе будет у меня в сторис, следи и не пропусти!")
+    # ✅ Отправка автору уведомления о регистрации
+    await context.bot.send_message(
+        chat_id=AUTHOR_ID,
+        text=f"🔔 Новая регистрация:\n\nИмя: {name}\nТелефон: {phone}"
+    )
+
+    # Ответ пользователю и удаление клавиатуры
+    await update.message.reply_text(
+        f"✅ Спасибо, {name}!\n"
+        f"Мы свяжемся с тобой по номеру: {phone}.\n"
+        f"Следи за сторис — там будет вся актуальная информация!",
+        reply_markup=ReplyKeyboardRemove()
+    )
+
     return ConversationHandler.END
 
 # Обработка /cancel
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Регистрация отменена.")
+    await update.message.reply_text("🚫 Регистрация отменена.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 # Запуск
